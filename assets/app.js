@@ -153,22 +153,36 @@ function getVideoTrack() {
 
 async function toggleTorch() {
   const track = getVideoTrack();
-  if (!track) return;
-  const capabilities = track.getCapabilities?.();
-  if (!capabilities?.torch) {
-    showError("Thiết bị hoặc trình duyệt này không hỗ trợ điều khiển đèn pin.");
+
+  if (!track || track.readyState !== "live") {
+    showError("Camera chưa hoạt động. Hãy mở camera trước khi bật đèn pin.");
     return;
   }
+
+  const capabilities = track.getCapabilities?.();
+  if (!capabilities?.torch) {
+    showError("Camera hoặc trình duyệt không hỗ trợ điều khiển đèn pin.");
+    return;
+  }
+
+  const nextTorchState = !torchOn;
+  torchButton.disabled = true;
+
   try {
-    torchOn = !torchOn;
-    await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+    await track.applyConstraints({
+      advanced: [{ torch: nextTorchState }]
+    });
+
+    torchOn = nextTorchState;
     torchButton.setAttribute("aria-pressed", String(torchOn));
     torchLabel.textContent = torchOn ? "Tắt đèn" : "Đèn pin";
-  } catch {
-    torchOn = false;
-    torchButton.setAttribute("aria-pressed", "false");
-    torchLabel.textContent = "Đèn pin";
-    showError("Không thể bật đèn pin trên camera hiện tại.");
+    clearError();
+  } catch (error) {
+    showError(
+      `Không thể ${nextTorchState ? "bật" : "tắt"} đèn pin: ${error?.message || "trình duyệt từ chối lệnh"}.`
+    );
+  } finally {
+    torchButton.disabled = !getVideoTrack()?.getCapabilities?.().torch;
   }
 }
 
