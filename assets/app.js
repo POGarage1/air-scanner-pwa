@@ -36,6 +36,7 @@ let decoding = false;
 let lastFrameAt = 0;
 let diagnosticLastAt = 0;
 let diagnosticFrameCount = 0;
+let frameProcessingFailed = false;
 const canvas = document.createElement("canvas");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 
@@ -130,6 +131,9 @@ async function startScanner() {
     startButton.querySelector("span:last-child").textContent = "Đang quét…";
     stopButton.disabled = false;
     torchButton.disabled = !getVideoTrack()?.getCapabilities?.().torch;
+    frameProcessingFailed = false;
+    diagnosticLastAt = 0;
+    diagnosticFrameCount = 0;
     setStatus("Đang tìm mã vạch", "Giữ mã rõ nét trong khung camera", true);
     rafId = requestAnimationFrame(scanFrame);
   } catch (error) {
@@ -193,6 +197,9 @@ async function toggleTorch() {
 function scanFrame(timestamp) {
   if (!running) return;
   rafId = requestAnimationFrame(scanFrame);
+
+  // Giữ nguyên lỗi đầu tiên để người dùng đọc được.
+  if (frameProcessingFailed) return;
 
   if (
     decoding ||
@@ -287,7 +294,8 @@ function scanFrame(timestamp) {
       }
     }
   } catch (error) {
-    const message = String(error?.message ?? error ?? "Lỗi không rõ").slice(0, 120);
+    frameProcessingFailed = true;
+    const message = String(error?.message ?? error ?? "Lỗi không rõ").slice(0, 240);
     setStatus("LỖI KHI XỬ LÝ KHUNG HÌNH", message, false);
   } finally {
     decoding = false;
