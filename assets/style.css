@@ -432,3 +432,35 @@ button {
 .camera-placeholder span {
   display: none !important;
 }
+
+/* Bỏ logo */
+.shield {
+  display: none !important;
+}
+
+/* Bỏ dòng trạng thái trên cùng */
+.camera-state {
+  display: none !important;
+}
+
+/* Bỏ bốn góc trắng, không giới hạn hình dạng barcode */
+.scan-frame .corner {
+  display: none !important;
+}
+
+/* Thu nhỏ nút đèn pin */
+.torch-button {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  padding: 8px !important;
+  border-radius: 50% !important;
+  box-sizing: border-box !important;
+}
+
+/* Thu nhỏ biểu tượng bên trong nút */
+.torch-button .torch-icon {
+  font-size: 18px !important;
+  line-height: 1 !important;
+}

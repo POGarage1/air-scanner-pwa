@@ -64,7 +64,7 @@ function clearError() {
 
 async function loadWasm() {
   if (wasmReady) return;
-  await init();
+  // rxing-wasm tự khởi tạo WebAssembly qua module đã được import.
   wasmReady = true;
 }
 
