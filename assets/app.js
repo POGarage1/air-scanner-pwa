@@ -75,15 +75,24 @@ function makeHints() {
   return hints;
 }
 
+let starting = false;
+
 async function startScanner() {
+  if (document.hidden || running || starting) return;
+
   clearError();
   if (!navigator.mediaDevices?.getUserMedia) {
     showError("Trình duyệt không hỗ trợ camera hoặc trang chưa chạy qua HTTPS. Hãy mở PWA qua HTTPS.");
     return;
   }
+
+  starting = true;
   startButton.disabled = true;
+
+  let newStream = null;
+
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
+    newStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
         facingMode: { ideal: "environment" },
@@ -92,10 +101,23 @@ async function startScanner() {
       }
     });
 
+    // Nếu người dùng rời tab trong lúc trình duyệt đang hỏi quyền,
+    // giải phóng stream thay vì giữ camera chạy nền.
+    if (document.hidden) {
+      newStream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+
+    stream = newStream;
     await loadWasm();
-    
     video.srcObject = stream;
     await video.play();
+
+    if (document.hidden) {
+      await stopScanner();
+      return;
+    }
+
     running = true;
     placeholder.hidden = true;
     video.classList.add("active");
@@ -105,15 +127,23 @@ async function startScanner() {
     setStatus("Đang tìm mã vạch", "Giữ mã rõ nét trong khung camera", true);
     rafId = requestAnimationFrame(scanFrame);
   } catch (error) {
-    startButton.disabled = false;
-    startButton.querySelector("span:last-child").textContent = "Bắt đầu quét";
-    const message = error?.name === "NotAllowedError"
-      ? "Bạn chưa cấp quyền camera. Hãy cho phép camera trong cài đặt trình duyệt rồi thử lại."
-      : error?.name === "NotFoundError"
-      ? "Không tìm thấy camera trên thiết bị."
-      : `Không thể khởi động máy quét: ${error?.message || "lỗi không xác định"}`;
-    showError(message);
-    setStatus("Không thể mở camera");
+    if (newStream && newStream !== stream) {
+      newStream.getTracks().forEach((track) => track.stop());
+    }
+    if (!document.hidden) {
+      startButton.disabled = false;
+      startButton.querySelector("span:last-child").textContent = "Bắt đầu quét";
+      const message = error?.name === "NotAllowedError"
+        ? "Bạn chưa cấp quyền camera. Hãy cho phép camera trong cài đặt trình duyệt rồi thử lại."
+        : error?.name === "NotFoundError"
+        ? "Không tìm thấy camera trên thiết bị."
+        : `Không thể khởi động máy quét: ${error?.message || "lỗi không xác định"}`;
+      showError(message);
+      setStatus("Không thể mở camera");
+    }
+  } finally {
+    starting = false;
+    if (!running && !document.hidden) startButton.disabled = false;
   }
 }
 
@@ -227,7 +257,11 @@ copyButton.addEventListener("click", async () => {
   }
 });
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && running) stopScanner();
+  if (document.hidden) {
+    void stopScanner();
+  } else {
+    void startScanner();
+  }
 });
 window.addEventListener("pagehide", () => {
   if (running) stopScanner();
