@@ -209,6 +209,7 @@ function scanFrame(timestamp) {
 
   lastFrameAt = timestamp;
   decoding = true;
+  let processingStage = "kiểm tra khung hình";
 
   try {
     if (!video.videoWidth || !video.videoHeight) {
@@ -223,11 +224,15 @@ function scanFrame(timestamp) {
 
     canvas.width = width;
     canvas.height = height;
+    processingStage = "vẽ hình camera lên canvas";
     context.drawImage(video, 0, 0, width, height);
 
+    processingStage = "convert_canvas_to_luma";
     const luma = convert_canvas_to_luma(canvas);
+    processingStage = "decode_multi / rxing-wasm";
     const results = decode_multi(luma, width, height, makeHints(), false);
 
+    processingStage = "xử lý kết quả giải mã";
     // Chỉ cập nhật trạng thái định kỳ để không làm nhấp nháy giao diện.
     const now = Date.now();
     if (now - diagnosticLastAt >= 2000) {
@@ -295,8 +300,16 @@ function scanFrame(timestamp) {
     }
   } catch (error) {
     frameProcessingFailed = true;
-    const message = String(error?.message ?? error ?? "Lỗi không rõ").slice(0, 240);
-    setStatus("LỖI KHI XỬ LÝ KHUNG HÌNH", message, false);
+    const errorName = String(error?.name || "Error");
+    const errorMessage = String(
+      error?.message || error || "Không có thông tin lỗi"
+    ).slice(0, 180);
+
+    setStatus(
+      "LỖI KHI XỬ LÝ KHUNG HÌNH",
+      `Bước: ${processingStage} | ${errorName}: ${errorMessage}`,
+      false
+    );
   } finally {
     decoding = false;
   }
