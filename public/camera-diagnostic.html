@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <title>Air Scanner - Camera Diagnostics</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #111;
+      color: #eee;
+      font: 15px/1.5 system-ui, sans-serif;
+    }
+    h1 { font-size: 22px; }
+    button {
+      padding: 12px 16px;
+      margin: 4px 4px 8px 0;
+      border: 0;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    #start { background: #fff; color: #111; }
+    #stop { background: #555; color: #fff; }
+    #clear { background: #333; color: #fff; }
+    video {
+      width: 100%;
+      max-height: 45vh;
+      background: #000;
+      margin-top: 12px;
+    }
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #1c1c1c;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+    }
+    .hint { color: #bbb; }
+  </style>
+</head>
+<body>
+  <h1>Air Scanner — Camera Diagnostics</h1>
+  <p class="hint">
+    Mở trang này trên cùng domain Vercel với ứng dụng.
+    Nhấn “Kiểm tra camera” để thử yêu cầu quyền camera trực tiếp.
+  </p>
+
+  <button id="start">Kiểm tra camera</button>
+  <button id="stop">Dừng camera</button>
+  <button id="clear">Xóa log</button>
+
+  <video id="video" autoplay muted playsinline></video>
+  <pre id="log"></pre>
+
+<script>
+(() => {
+  "use strict";
+
+  const logBox = document.getElementById("log");
+  const video = document.getElementById("video");
+  let stream = null;
+
+  function log(label, value) {
+    const time = new Date().toISOString();
+    let detail = "";
+
+    if (value !== undefined) {
+      try {
+        detail = typeof value === "string"
+          ? value
+          : JSON.stringify(value, (key, val) => {
+              if (val instanceof Error) {
+                return {
+                  name: val.name,
+                  message: val.message,
+                  stack: val.stack
+                };
+              }
+              return val;
+            }, 2);
+      } catch {
+        detail = String(value);
+      }
+    }
+
+    const line = `[${time}] ${label}${detail ? "\n" + detail : ""}`;
+    logBox.textContent += line + "\n\n";
+    console.log("[CameraDiag]", label, value ?? "");
+  }
+
+  function errorDetails(error) {
+    return {
+      name: error?.name ?? "(không có name)",
+      message: error?.message ?? String(error),
+      constraint: error?.constraint ?? null,
+      stack: error?.stack ?? null
+    };
+  }
+
+  window.addEventListener("error", event => {
+    log("GLOBAL JAVASCRIPT ERROR", {
+      message: event.message,
+      filename: event.filename,
+      line: event.lineno,
+      column: event.colno,
+      error: errorDetails(event.error)
+    });
+  });
+
+  window.addEventListener("unhandledrejection", event => {
+    log("UNHANDLED PROMISE REJECTION", errorDetails(event.reason));
+  });
+
+  window.addEventListener("pagehide", () => {
+    log("PAGEHIDE", "Trang đang rời khỏi foreground hoặc bị đóng.");
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    log("VISIBILITY", {
+      state: document.visibilityState,
+      hidden: document.hidden
+    });
+  });
+
+  async function inspectEnvironment() {
+    log("PAGE INFO", {
+      url: location.href,
+      origin: location.origin,
+      protocol: location.protocol,
+      secureContext: window.isSecureContext,
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      visibility: document.visibilityState,
+      referrer: document.referrer
+    });
+
+    log("CAMERA API", {
+      mediaDevicesExists: !!navigator.mediaDevices,
+      getUserMediaExists:
+        typeof navigator.mediaDevices?.getUserMedia === "function",
+      enumerateDevicesExists:
+        typeof navigator.mediaDevices?.enumerateDevices === "function",
+      permissionsExists: !!navigator.permissions,
+      mediaDevicesType: typeof navigator.mediaDevices
+    });
+
+    try {
+      const policy =
+        document.permissionsPolicy || document.featurePolicy;
+
+      if (policy?.allowsFeature) {
+        log("CAMERA POLICY", {
+          cameraAllowedByPolicy: policy.allowsFeature("camera")
+        });
+      } else {
+        log("CAMERA POLICY", "Trình duyệt không cung cấp API kiểm tra policy.");
+      }
+    } catch (error) {
+      log("CAMERA POLICY CHECK ERROR", errorDetails(error));
+    }
+
+    if (navigator.permissions?.query) {
+      try {
+        const result = await navigator.permissions.query({ name: "camera" });
+        log("CAMERA PERMISSION API", {
+          state: result.state,
+          note: "Có thể không được hỗ trợ hoặc không phản ánh đầy đủ hành vi Safari."
+        });
+
+        result.onchange = () => {
+          log("CAMERA PERMISSION CHANGED", result.state);
+        };
+      } catch (error) {
+        log("CAMERA PERMISSION QUERY FAILED", errorDetails(error));
+      }
+    } else {
+      log("CAMERA PERMISSION API", "Không hỗ trợ permissions.query.");
+    }
+
+    if (navigator.mediaDevices?.enumerateDevices) {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        log("DEVICES BEFORE PERMISSION", devices.map(device => ({
+          kind: device.kind,
+          label: device.label,
+          deviceIdPresent: !!device.deviceId
+        })));
+        log("DEVICE NOTE",
+          "Trước khi cấp quyền, label hoặc danh sách camera có thể bị ẩn.");
+      } catch (error) {
+        log("ENUMERATE DEVICES FAILED", errorDetails(error));
+      }
+    }
+  }
+
+  document.getElementById("start").addEventListener("click", async () => {
+    log("USER CLICK", "Đã nhấn Kiểm tra camera.");
+
+    if (!window.isSecureContext) {
+      log("BLOCKER", "Trang không ở secure context (HTTPS/localhost).");
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      log("BLOCKER",
+        "Không có getUserMedia. Kiểm tra HTTPS, trình duyệt hoặc chính sách nhúng.");
+      return;
+    }
+
+    if (stream) {
+      log("INFO", "Đã có stream; dừng stream cũ trước khi thử lại.");
+      stopCamera();
+    }
+
+    try {
+      log("GET USER MEDIA CALL", {
+        time: new Date().toISOString(),
+        constraints: {
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        }
+      });
+
+      // Gọi trực tiếp từ thao tác nhấn nút, không chờ WASM hoặc thư viện khác.
+      const pending = navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+
+      log("GET USER MEDIA", "Đã gọi API; đang chờ trình duyệt trả kết quả.");
+      stream = await pending;
+
+      log("CAMERA GRANTED / STREAM OK", {
+        active: stream.active,
+        tracks: stream.getTracks().map(track => ({
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          settings: track.getSettings?.(),
+          capabilities: track.getCapabilities?.()
+        }))
+      });
+
+      video.srcObject = stream;
+
+      try {
+        await video.play();
+        log("VIDEO PLAY OK", {
+          paused: video.paused,
+          readyState: video.readyState,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight
+        });
+      } catch (error) {
+        log("VIDEO PLAY FAILED", errorDetails(error));
+      }
+
+      video.onloadedmetadata = () => {
+        log("VIDEO METADATA", {
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          readyState: video.readyState
+        });
+      };
+
+      video.onerror = () => {
+        log("VIDEO ELEMENT ERROR", {
+          code: video.error?.code,
+          message: video.error?.message
+        });
+      };
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        log("DEVICES AFTER PERMISSION", devices.map(device => ({
+          kind: device.kind,
+          label: device.label,
+          deviceIdPresent: !!device.deviceId
+        })));
+      } catch (error) {
+        log("ENUMERATE DEVICES AFTER GRANT FAILED", errorDetails(error));
+      }
+    } catch (error) {
+      log("GET USER MEDIA FAILED", errorDetails(error));
+      log("ERROR INTERPRETATION", ({
+        NotAllowedError:
+          "Quyền bị từ chối, chính sách trình duyệt chặn, hoặc ngữ cảnh không được phép.",
+        PermissionDeniedError:
+          "Quyền camera bị từ chối (tên lỗi cũ trên một số trình duyệt).",
+        NotFoundError:
+          "Không tìm thấy camera phù hợp.",
+        NotReadableError:
+          "Camera không mở được, có thể đang bị ứng dụng khác sử dụng hoặc hệ điều hành chặn.",
+        OverconstrainedError:
+          "Không đáp ứng được một ràng buộc camera; thử constraints đơn giản hơn.",
+        SecurityError:
+          "Trình duyệt hoặc ngữ cảnh bảo mật chặn truy cập media.",
+        AbortError:
+          "Yêu cầu mở camera bị hủy hoặc không thể hoàn tất."
+      })[error?.name] ?? "Xem name/message/stack và cài đặt quyền camera."
+      );
+      stream = null;
+    }
+  });
+
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    video.srcObject = null;
+    log("CAMERA STOPPED", "Đã dừng các track camera.");
+  }
+
+  document.getElementById("stop").addEventListener("click", stopCamera);
+  document.getElementById("clear").addEventListener("click", () => {
+    logBox.textContent = "";
+    console.clear();
+    log("LOG CLEARED", "Đã xóa log cũ.");
+  });
+
+  inspectEnvironment().catch(error => {
+    log("ENVIRONMENT INSPECTION FAILED", errorDetails(error));
+  });
+})();
+</script>
+</body>
+</html>
