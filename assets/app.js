@@ -354,25 +354,38 @@ function showResult(value, result) {
   if (navigator.vibrate) navigator.vibrate(35);
 }
 
-async function stopScanner() {
+function stopScanner() {
+  // Dừng vòng lặp quét ngay lập tức.
   running = false;
   cancelAnimationFrame(rafId);
-  const track = getVideoTrack();
-  if (track && torchOn) {
-    try { await track.applyConstraints({ advanced: [{ torch: false }] }); } catch {}
+  rafId = 0;
+
+  // Giải phóng camera ngay, không chờ thao tác tắt đèn pin.
+  const currentStream = stream;
+  stream = null;
+
+  if (currentStream) {
+    currentStream.getTracks().forEach((track) => {
+      track.stop();
+    });
   }
+
+  // Gỡ camera khỏi video.
+  video.pause();
+  video.srcObject = null;
+  video.classList.remove("active");
+
+  // Đặt lại trạng thái giao diện.
   torchOn = false;
   torchButton.setAttribute("aria-pressed", "false");
   torchLabel.textContent = "Đèn pin";
-  if (stream) stream.getTracks().forEach((trackItem) => trackItem.stop());
-  stream = null;
-  video.srcObject = null;
-  video.classList.remove("active");
   placeholder.hidden = false;
   startButton.disabled = false;
-  startButton.querySelector("span:last-child").textContent = "Bắt đầu quét";
+  startButton.querySelector("span:last-child").textContent =
+    "Bắt đầu quét";
   stopButton.disabled = true;
   torchButton.disabled = true;
+
   setStatus("Sẵn sàng quét");
 }
 
@@ -388,33 +401,54 @@ copyButton.addEventListener("click", async () => {
     showError("Không thể sao chép tự động. Hãy chọn và sao chép kết quả thủ công.");
   }
 });
+let resumeTimer = null;
+
 document.addEventListener("visibilitychange", () => {
+  console.log("[Camera] visibilitychange:", {
+    hidden: document.hidden,
+    visibilityState: document.visibilityState,
+    running,
+    starting
+  });
+
   if (document.hidden) {
-    // Rời tab: dừng quét và giải phóng camera.
-    void stopScanner();
+    if (resumeTimer !== null) {
+      clearTimeout(resumeTimer);
+      resumeTimer = null;
+    }
+
+    stopScanner();
+    console.log("[Camera] Đã yêu cầu dừng camera");
     return;
   }
 
-  // Quay lại tab: tự khởi động camera, không cần bấm nút.
-  const resumeScanner = () => {
+  // Tránh tạo nhiều vòng thử khởi động cùng lúc.
+  if (resumeTimer !== null) {
+    clearTimeout(resumeTimer);
+  }
+
+  const tryResume = () => {
+    resumeTimer = null;
+
     if (document.hidden) return;
 
     if (starting) {
-      // Chờ lần khởi động trước kết thúc để tránh bỏ lỡ việc khởi động lại.
-      setTimeout(resumeScanner, 200);
+      resumeTimer = setTimeout(tryResume, 250);
       return;
     }
 
     if (!running) {
+      console.log("[Camera] Đang tự khởi động lại");
       void startScanner();
     }
   };
 
-  resumeScanner();
+  tryResume();
 });
 
 window.addEventListener("pagehide", () => {
-  void stopScanner();
+  console.log("[Camera] pagehide: dừng camera");
+  stopScanner();
 });
 
 if (document.readyState === "loading") {
