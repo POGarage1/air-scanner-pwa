@@ -34,6 +34,8 @@ let lastDecodedAt = 0;
 let wasmReady = false;
 let decoding = false;
 let lastFrameAt = 0;
+let diagnosticLastAt = 0;
+let diagnosticFrameCount = 0;
 const canvas = document.createElement("canvas");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 
@@ -181,7 +183,8 @@ async function toggleTorch() {
     torchLabel.textContent = torchOn ? "Tắt đèn" : "Đèn pin";
     clearError();
   } catch (error) {
-    // Không hiển thị thông báo lỗi.
+    const message = String(error?.message ?? error ?? "Lỗi không rõ").slice(0, 160);
+    showError(`Không bật được đèn pin: ${message}`);
   } finally {
     torchButton.disabled = !getVideoTrack()?.getCapabilities?.().torch;
   }
@@ -190,23 +193,73 @@ async function toggleTorch() {
 function scanFrame(timestamp) {
   if (!running) return;
   rafId = requestAnimationFrame(scanFrame);
-  if (decoding || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || timestamp - lastFrameAt < 140) return;
+
+  if (
+    decoding ||
+    video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+    timestamp - lastFrameAt < 140
+  ) return;
+
   lastFrameAt = timestamp;
   decoding = true;
+
   try {
-    // Downscale the frame to reduce per-frame processing cost.
+    if (!video.videoWidth || !video.videoHeight) {
+      setStatus("ĐANG CHỜ HÌNH ẢNH", "Camera chưa cung cấp kích thước khung hình", true);
+      return;
+    }
+
     const maxWidth = 1280;
     const scale = Math.min(1, maxWidth / video.videoWidth);
     const width = Math.max(1, Math.round(video.videoWidth * scale));
     const height = Math.max(1, Math.round(video.videoHeight * scale));
+
     canvas.width = width;
     canvas.height = height;
     context.drawImage(video, 0, 0, width, height);
+
     const luma = convert_canvas_to_luma(canvas);
     const results = decode_multi(luma, width, height, makeHints(), false);
+
+    // Chỉ cập nhật trạng thái định kỳ để không làm nhấp nháy giao diện.
+    const now = Date.now();
+    if (now - diagnosticLastAt >= 2000) {
+      diagnosticLastAt = now;
+      diagnosticFrameCount++;
+
+      if (results && results.length) {
+        const formats = results.map((result) =>
+          String(
+            result.get_barcode_format?.() ??
+            result.get_format?.() ??
+            result.format ??
+            "KHÔNG RÕ ĐỊNH DẠNG"
+          )
+        );
+
+        setStatus(
+          "BỘ GIẢI MÃ CÓ KẾT QUẢ",
+          `Kết quả: ${formats.slice(0, 3).join(", ")} · Khung hình ${width}×${height}`,
+          true
+        );
+      } else {
+        setStatus(
+          "ĐANG QUÉT · CHƯA ĐỌC ĐƯỢC",
+          `Camera có hình ${width}×${height}; bộ giải mã chưa trả kết quả. Lần kiểm tra ${diagnosticFrameCount}`,
+          true
+        );
+      }
+    }
+
     if (results && results.length) {
       const allowed = results.find((result) => {
-        const format = String(result.get_barcode_format?.() ?? result.get_format?.() ?? result.format ?? "").toLowerCase();
+        const format = String(
+          result.get_barcode_format?.() ??
+          result.get_format?.() ??
+          result.format ??
+          ""
+        ).toLowerCase();
+
         return (
           format.includes("pdf417") ||
           format.includes("aztec") ||
@@ -216,17 +269,26 @@ function scanFrame(timestamp) {
           format.includes("interleaved")
         );
       });
+
       if (allowed) {
         const value = allowed.get_text?.() ?? allowed.text ?? "";
+
         if (value && (value !== lastValue || Date.now() - lastDecodedAt > 1800)) {
           lastValue = value;
           lastDecodedAt = Date.now();
           showResult(value, allowed);
+        } else if (!value) {
+          setStatus(
+            "NHẬN DẠNG ĐƯỢC ĐỊNH DẠNG",
+            "Bộ giải mã không trả về nội dung văn bản",
+            true
+          );
         }
       }
     }
-  } catch {
-    // A frame without a decodable barcode is normal; keep scanning.
+  } catch (error) {
+    const message = String(error?.message ?? error ?? "Lỗi không rõ").slice(0, 120);
+    setStatus("LỖI KHI XỬ LÝ KHUNG HÌNH", message, false);
   } finally {
     decoding = false;
   }
