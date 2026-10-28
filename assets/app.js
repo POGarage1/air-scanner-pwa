@@ -70,8 +70,12 @@ async function loadWasm() {
 
 function makeHints() {
   const hints = new DecodeHintDictionary();
-  // Rxing-Wasm uses PossibleFormats as a comma-separated format list.
-  hints.set_hint(DecodeHintTypes.PossibleFormats, "pdf417,itf");
+  // Mở rộng định dạng để hỗ trợ nhiều loại mã trên vé máy bay.
+  hints.set_hint(
+    DecodeHintTypes.PossibleFormats,
+    "pdf417,aztec,qrcode,datamatrix,itf"
+  );
+  hints.set_hint(DecodeHintTypes.TryHarder, "true");
   return hints;
 }
 
@@ -151,17 +155,16 @@ function getVideoTrack() {
   return stream?.getVideoTracks?.()[0] || null;
 }
 
+
 async function toggleTorch() {
   const track = getVideoTrack();
 
   if (!track || track.readyState !== "live") {
-    showError("Camera chưa hoạt động. Hãy mở camera trước khi bật đèn pin.");
     return;
   }
 
   const capabilities = track.getCapabilities?.();
   if (!capabilities?.torch) {
-    showError("Camera hoặc trình duyệt không hỗ trợ điều khiển đèn pin.");
     return;
   }
 
@@ -178,9 +181,7 @@ async function toggleTorch() {
     torchLabel.textContent = torchOn ? "Tắt đèn" : "Đèn pin";
     clearError();
   } catch (error) {
-    showError(
-      `Không thể ${nextTorchState ? "bật" : "tắt"} đèn pin: ${error?.message || "trình duyệt từ chối lệnh"}.`
-    );
+    // Không hiển thị thông báo lỗi.
   } finally {
     torchButton.disabled = !getVideoTrack()?.getCapabilities?.().torch;
   }
@@ -194,7 +195,7 @@ function scanFrame(timestamp) {
   decoding = true;
   try {
     // Downscale the frame to reduce per-frame processing cost.
-    const maxWidth = 960;
+    const maxWidth = 1280;
     const scale = Math.min(1, maxWidth / video.videoWidth);
     const width = Math.max(1, Math.round(video.videoWidth * scale));
     const height = Math.max(1, Math.round(video.videoHeight * scale));
@@ -206,7 +207,14 @@ function scanFrame(timestamp) {
     if (results && results.length) {
       const allowed = results.find((result) => {
         const format = String(result.get_barcode_format?.() ?? result.get_format?.() ?? result.format ?? "").toLowerCase();
-        return format.includes("pdf417") || format === "itf" || format.includes("interleaved");
+        return (
+          format.includes("pdf417") ||
+          format.includes("aztec") ||
+          format.includes("qr") ||
+          format.includes("datamatrix") ||
+          format === "itf" ||
+          format.includes("interleaved")
+        );
       });
       if (allowed) {
         const value = allowed.get_text?.() ?? allowed.text ?? "";
