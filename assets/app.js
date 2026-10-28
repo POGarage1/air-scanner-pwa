@@ -299,17 +299,31 @@ function scanFrame(timestamp) {
       }
     }
   } catch (error) {
-    frameProcessingFailed = true;
     const errorName = String(error?.name || "Error");
     const errorMessage = String(
       error?.message || error || "Không có thông tin lỗi"
     ).slice(0, 180);
 
-    setStatus(
-      "LỖI KHI XỬ LÝ KHUNG HÌNH",
-      `Bước: ${processingStage} | ${errorName}: ${errorMessage}`,
-      false
-    );
+    const errorDetails = `${errorName} ${errorMessage}`;
+    const isNotFound = /not.?found|notfoundexception/i.test(errorDetails);
+
+    if (isNotFound) {
+      if (timestamp - diagnosticLastAt >= 2000) {
+        diagnosticLastAt = timestamp;
+        setStatus(
+          "ĐANG QUÉT · CHƯA ĐỌC ĐƯỢC",
+          "Khung hình này chưa giải mã được mã vạch; đang thử tiếp.",
+          false
+        );
+      }
+    } else {
+      frameProcessingFailed = true;
+      setStatus(
+        "LỖI KHI XỬ LÝ KHUNG HÌNH",
+        `Bước: ${processingStage} | ${errorName}: ${errorMessage}`,
+        false
+      );
+    }
   } finally {
     decoding = false;
   }
