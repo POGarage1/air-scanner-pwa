@@ -83,7 +83,6 @@ async function startScanner() {
   }
   startButton.disabled = true;
   try {
-    await loadWasm();
     stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
@@ -92,6 +91,9 @@ async function startScanner() {
         height: { ideal: 720 }
       }
     });
+
+    await loadWasm();
+    
     video.srcObject = stream;
     await video.play();
     running = true;
