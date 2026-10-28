@@ -1,4 +1,4 @@
-import init, {
+import {
   convert_canvas_to_luma,
   decode_multi,
   DecodeHintDictionary,
@@ -37,12 +37,20 @@ let lastFrameAt = 0;
 const canvas = document.createElement("canvas");
 const context = canvas.getContext("2d", { willReadFrequently: true });
 
-function setStatus(title, subtitle = "Chỉ nhận PDF417 và ITF", active = false) {
-  scanStatus.textContent = title;
-  scanSubstatus.textContent = subtitle;
-  cameraState.textContent = active ? "ĐANG QUÉT" : "SẴN SÀNG";
-  statusDot.classList.toggle("active", active);
-  document.querySelector(".live-pill i").classList.toggle("active", active);
+function setStatus(title = "", subtitle = "", active = false) {
+  const scanStatus = document.getElementById("scan-status");
+  const scanSubstatus = document.getElementById("scan-substatus");
+
+  if (scanStatus) scanStatus.textContent = title;
+  if (scanSubstatus) scanSubstatus.textContent = subtitle;
+
+  const cameraState = document.getElementById("camera-state");
+  const statusDot = document.getElementById("status-dot");
+  const liveDot = document.querySelector(".live-pill i");
+
+  if (cameraState) cameraState.textContent = "";
+  if (statusDot) statusDot.classList.toggle("active", active);
+  if (liveDot) liveDot.classList.toggle("active", active);
 }
 
 function showError(message) {
@@ -56,7 +64,6 @@ function clearError() {
 
 async function loadWasm() {
   if (wasmReady) return;
-  setStatus("Đang tải bộ giải mã", "Khởi tạo Rxing WebAssembly");
   await init();
   wasmReady = true;
 }
@@ -222,6 +229,10 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pagehide", () => {
   if (running) stopScanner();
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  startScanner();
 });
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {

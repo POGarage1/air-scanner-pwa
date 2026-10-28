@@ -1,2 +1,10 @@
-import { defineConfig } from 'vite';
-export default defineConfig({ base: './' });
+import { defineConfig } from 'vite'
+import wasm from 'vite-plugin-wasm'
+
+export default defineConfig({
+  base: './',
+  plugins: [wasm()],
+  build: {
+    target: 'esnext'
+  }
+})
