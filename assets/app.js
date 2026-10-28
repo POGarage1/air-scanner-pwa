@@ -390,13 +390,31 @@ copyButton.addEventListener("click", async () => {
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
+    // Rời tab: dừng quét và giải phóng camera.
     void stopScanner();
-  } else {
-    void startScanner();
+    return;
   }
+
+  // Quay lại tab: tự khởi động camera, không cần bấm nút.
+  const resumeScanner = () => {
+    if (document.hidden) return;
+
+    if (starting) {
+      // Chờ lần khởi động trước kết thúc để tránh bỏ lỡ việc khởi động lại.
+      setTimeout(resumeScanner, 200);
+      return;
+    }
+
+    if (!running) {
+      void startScanner();
+    }
+  };
+
+  resumeScanner();
 });
+
 window.addEventListener("pagehide", () => {
-  if (running) stopScanner();
+  void stopScanner();
 });
 
 if (document.readyState === "loading") {
