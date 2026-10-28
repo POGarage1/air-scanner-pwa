@@ -492,3 +492,33 @@ button {
 #torch-label {
   font-size: 9px !important;
 }
+
+/* Trạng thái chẩn đoán máy quét */
+.scan-diagnostics {
+  position: absolute;
+  z-index: 10;
+  left: 16px;
+  right: 16px;
+  bottom: 92px;
+  padding: 12px 14px;
+  border: 1px solid rgba(189, 0, 255, 0.55);
+  border-radius: 12px;
+  background: rgba(5, 5, 5, 0.88);
+  color: #fff;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.scan-diagnostics strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+}
+
+.scan-diagnostics p {
+  margin: 4px 0 0;
+  color: #ddd;
+  font-size: 12px;
+  line-height: 1.5;
+}
