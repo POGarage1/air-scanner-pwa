@@ -241,14 +241,7 @@ function scanFrame(timestamp) {
 
       if (results && results.length) {
         const formats = results.map((result) =>
-          String(
-            typeof result.format === "function"
-              ? result.format()
-              : result.format ??
-                result.get_barcode_format?.() ??
-                result.get_format?.() ??
-                "KHÔNG RÕ ĐỊNH DẠNG"
-          )
+          getBarcodeFormatName(result)
         );
 
         setStatus(
@@ -267,14 +260,7 @@ function scanFrame(timestamp) {
 
     if (results && results.length) {
       const allowed = results.find((result) => {
-        const format = String(
-          typeof result.format === "function"
-            ? result.format()
-            : result.format ??
-              result.get_barcode_format?.() ??
-              result.get_format?.() ??
-              ""
-        ).toLowerCase();
+        const format = getBarcodeFormatName(result).toLowerCase();
 
         return (
           format.includes("pdf417") ||
@@ -335,12 +321,24 @@ function scanFrame(timestamp) {
   }
 }
 
+function getBarcodeFormatName(result) {
+  const raw = typeof result.format === "function"
+    ? result.format()
+    : result.format ?? result.get_barcode_format?.() ?? result.get_format?.() ?? "";
+
+  if (typeof raw === "number") {
+    if (raw === 10) return "PDF417";
+    if (raw === 0) return "AZTEC";
+    if (raw === 5) return "DATAMATRIX";
+    if (raw === 8) return "ITF";
+    return `FORMAT_${raw}`;
+  }
+
+  return String(raw);
+}
+
 function showResult(value, result) {
-  const formatRaw = String(
-    typeof result.format === "function"
-      ? result.format()
-      : result.format ?? result.get_barcode_format?.() ?? result.get_format?.() ?? ""
-  );
+  const formatRaw = getBarcodeFormatName(result);
   const format = /pdf.?417/i.test(formatRaw) ? "PDF417" : /itf|interleaved/i.test(formatRaw) ? "ITF" : formatRaw.toUpperCase() || "BARCODE";
   resultEmpty.hidden = true;
   resultContent.hidden = false;
