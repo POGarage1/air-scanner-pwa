@@ -103,8 +103,8 @@ async function startScanner() {
       audio: false,
       video: {
         facingMode: { ideal: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
       }
     });
 
@@ -119,6 +119,11 @@ async function startScanner() {
     await loadWasm();
     video.srcObject = stream;
     await video.play();
+
+    const track = newStream.getVideoTracks()[0];
+    console.log("[CAMERA] video:", video.videoWidth, video.videoHeight);
+    console.log("[CAMERA] settings:", track.getSettings());
+    console.log("[CAMERA] capabilities:", track.getCapabilities?.());
 
     if (document.hidden) {
       await stopScanner();
@@ -217,7 +222,7 @@ function scanFrame(timestamp) {
       return;
     }
 
-    const maxWidth = 1280;
+    const maxWidth = 1920;
     const scale = Math.min(1, maxWidth / video.videoWidth);
     const width = Math.max(1, Math.round(video.videoWidth * scale));
     const height = Math.max(1, Math.round(video.videoHeight * scale));
