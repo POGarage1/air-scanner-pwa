@@ -233,9 +233,11 @@ window.addEventListener("pagehide", () => {
   if (running) stopScanner();
 });
 
-window.addEventListener("DOMContentLoaded", () => {
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startScanner, { once: true });
+} else {
   startScanner();
-});
+}
 
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
