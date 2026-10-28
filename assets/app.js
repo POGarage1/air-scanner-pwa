@@ -242,10 +242,12 @@ function scanFrame(timestamp) {
       if (results && results.length) {
         const formats = results.map((result) =>
           String(
-            result.get_barcode_format?.() ??
-            result.get_format?.() ??
-            result.format ??
-            "KHÔNG RÕ ĐỊNH DẠNG"
+            typeof result.format === "function"
+              ? result.format()
+              : result.format ??
+                result.get_barcode_format?.() ??
+                result.get_format?.() ??
+                "KHÔNG RÕ ĐỊNH DẠNG"
           )
         );
 
@@ -266,10 +268,12 @@ function scanFrame(timestamp) {
     if (results && results.length) {
       const allowed = results.find((result) => {
         const format = String(
-          result.get_barcode_format?.() ??
-          result.get_format?.() ??
-          result.format ??
-          ""
+          typeof result.format === "function"
+            ? result.format()
+            : result.format ??
+              result.get_barcode_format?.() ??
+              result.get_format?.() ??
+              ""
         ).toLowerCase();
 
         return (
@@ -283,7 +287,9 @@ function scanFrame(timestamp) {
       });
 
       if (allowed) {
-        const value = allowed.get_text?.() ?? allowed.text ?? "";
+        const value = typeof allowed.text === "function"
+          ? allowed.text()
+          : allowed.get_text?.() ?? allowed.text ?? "";
 
         if (value && (value !== lastValue || Date.now() - lastDecodedAt > 1800)) {
           lastValue = value;
@@ -330,7 +336,11 @@ function scanFrame(timestamp) {
 }
 
 function showResult(value, result) {
-  const formatRaw = String(result.get_barcode_format?.() ?? result.get_format?.() ?? result.format ?? "");
+  const formatRaw = String(
+    typeof result.format === "function"
+      ? result.format()
+      : result.format ?? result.get_barcode_format?.() ?? result.get_format?.() ?? ""
+  );
   const format = /pdf.?417/i.test(formatRaw) ? "PDF417" : /itf|interleaved/i.test(formatRaw) ? "ITF" : formatRaw.toUpperCase() || "BARCODE";
   resultEmpty.hidden = true;
   resultContent.hidden = false;
