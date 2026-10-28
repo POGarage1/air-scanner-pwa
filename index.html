@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08090d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Trình quét mã PDF417 và ITF chạy trực tiếp trên thiết bị.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon.svg">
+  <link rel="stylesheet" href="./assets/style.css">
+  <title>Air Scanner</title>
+</head>
+<body>
+  <main class="app-shell">
+    <section class="scanner-card">
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="brand-copy">
+          <p class="eyebrow">ON-DEVICE BARCODE READER</p>
+          <h1>AIR <span>SCANNER</span></h1>
+        </div>
+        <div class="live-pill"><i></i><span id="camera-state">SẴN SÀNG</span></div>
+      </header>
+
+      <div class="camera-stage" id="camera-stage">
+        <video id="video" muted playsinline autoplay></video>
+        <div class="camera-overlay" aria-hidden="true">
+          <div class="scan-frame">
+            <i class="corner tl"></i><i class="corner tr"></i>
+            <i class="corner bl"></i><i class="corner br"></i>
+            <div class="scan-line"></div>
+          </div>
+          <div class="target-label">ĐẶT MÃ VÀO KHUNG QUÉT</div>
+        </div>
+        <div class="camera-placeholder" id="camera-placeholder">
+          <div class="camera-glyph">▦</div>
+          <p>Camera đang tắt</p>
+          <span>Nhấn “Bắt đầu quét” để cấp quyền camera</span>
+        </div>
+        <div class="camera-error" id="camera-error" hidden role="alert"></div>
+      </div>
+
+      <div class="camera-toolbar">
+        <div class="scan-copy">
+          <span class="status-dot" id="status-dot"></span>
+          <div><strong id="scan-status">Sẵn sàng quét</strong><small id="scan-substatus">Chỉ nhận PDF417 và ITF</small></div>
+        </div>
+        <button class="torch-button" id="torch-button" type="button" aria-pressed="false" disabled>
+          <span class="torch-icon">ϟ</span><span id="torch-label">Đèn pin</span>
+        </button>
+      </div>
+
+      <div class="action-row">
+        <button class="primary-button" id="start-button" type="button">
+          <span class="button-icon">▦</span><span>Bắt đầu quét</span>
+        </button>
+        <button class="stop-button" id="stop-button" type="button" disabled>Dừng</button>
+      </div>
+
+      <section class="result-card" aria-live="polite" aria-atomic="true">
+        <div class="result-head">
+          <div><p class="eyebrow">SCAN OUTPUT</p><h2>Kết quả giải mã</h2></div>
+          <span class="format-badge" id="format-badge">CHƯA CÓ MÃ</span>
+        </div>
+        <div class="result-empty" id="result-empty">
+          <span class="empty-icon">⌁</span>
+          <p>Kết quả sẽ xuất hiện tại đây</p>
+          <small>Đưa mã PDF417 hoặc ITF vào vùng camera</small>
+        </div>
+        <div class="result-content" id="result-content" hidden>
+          <pre id="result-text"></pre>
+          <div class="result-meta"><span id="result-time"></span><button id="copy-button" type="button">Sao chép kết quả</button></div>
+        </div>
+      </section>
+      <footer><span>LOCAL PROCESSING</span><span>RXING · WEBASSEMBLY</span></footer>
+    </section>
+    <p class="page-note">Mã được giải mã ngay trên thiết bị. Không gửi hình ảnh camera lên máy chủ.</p>
+  </main>
+  <script type="module" src="./assets/app.js"></script>
+</body>
+</html>

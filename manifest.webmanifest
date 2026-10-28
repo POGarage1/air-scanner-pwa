@@ -1,0 +1,15 @@
+{
+  "id": "./",
+  "name": "Air Scanner",
+  "short_name": "Air Scanner",
+  "description": "Quét mã PDF417 và ITF ngay trên thiết bị.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08090d",
+  "theme_color": "#08090d",
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
